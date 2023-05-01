@@ -269,3 +269,6 @@ void loop()
   }
 }
 ```
+
+## Annexes
+![example_1](/static/example1.jpeg)
