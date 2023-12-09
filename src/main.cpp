@@ -8,17 +8,22 @@
 #include <ESP8266WiFi.h>
 #endif
 
-const char *ssid = "YOUR_SSID";
-const char *password = "YOUR_PASSWORD";
-const String apiKey = "YOUR_API_KEY";
-const String host = "https://api.info-dash.lat/v1";
-const int INTERVAL = 60000;
+// WiFi credentials
+const char *WIFI_SSID = "YOUR_WIFI_SSID";
+const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+// Info-Dash credentials
+const String HOST = "https://api.info-dash.lat/v1";
+const String API_KEY = "YOUR_INFO-DASH_API_KEY";
+
+// Info-Dash
+const int INTERVAL = 10000; // 10 seconds
 const int DHTPin = 4;
+
 
 float humidity = 0;
 float temperature = 0;
 String sendJson = "";
-
 DHTesp dht;
 
 String getSerialID()
@@ -35,7 +40,7 @@ bool connectToWifi()
 
   Serial.println("Info: Connecting to WiFi...");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -57,7 +62,7 @@ String buildSendJson(String response)
   deserializeJson(jsonResponse, response);
 
   jsonPayload["serial"] = getSerialID();
-  jsonPayload["apiKey"] = apiKey;
+  jsonPayload["apiKey"] = API_KEY;
 
   for (size_t i = 0; i < jsonResponse["stations"][0]["sensors"].size(); i++)
     jsonPayload["payloads"][i]["sensorId"] = jsonResponse["stations"][0]["sensors"][i]["sensorId"];
@@ -73,11 +78,10 @@ bool connectToServer()
 {
   Serial.println("Info: Connecting to server...");
   HTTPClient http;
-  String url = host + "/network/access/" + apiKey;
+  String url = HOST + "/network/access/" + API_KEY;
 
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", apiKey);
 
   int httpCode = http.GET();
 
@@ -100,7 +104,7 @@ void readDHT()
 {
   temperature = dht.getTemperature();
   humidity = dht.getHumidity();
-  Serial.print("Info: Temperature: ");
+  Serial.print("\nInfo: Temperature: ");
   Serial.print(temperature);
   Serial.print("°C");
   Serial.print(" Humidity: ");
@@ -125,7 +129,7 @@ String getPayload()
 void sendDataByHttp()
 {
   HTTPClient http;
-  http.begin(host);
+  http.begin(HOST);
   http.addHeader("Content-Type", "application/json");
   String payload = getPayload();
   int httpCode = http.POST(payload);
@@ -137,8 +141,11 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);
+
   Serial.println("Info: Starting...");
   Serial.println("Info: Serial ID: " + getSerialID());
+  delay(2000);
+
   dht.setup(DHTPin, DHTesp::DHT22);
 
   pinMode(LED_BUILTIN, OUTPUT);

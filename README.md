@@ -10,10 +10,31 @@ This code is for an ESP8266 or ESP32 based device that reads temperature and hum
 
 Platformio.init
 ```ini
+; ESP8266
+
+; [env:nodemcuv2]
+; platform = espressif8266
+; board = nodemcuv2
+; framework = arduino
+; upload_speed = 115200
+;lib_deps = 
+;	bblanchon/ArduinoJson@^6.20.0
+;	beegee-tokyo/DHT sensor library for ESPx@^1.19
+
+
+; ESP32
+[env:esp32doit-devkit-v1]
+platform = espressif32
+board = esp32doit-devkit-v1
+framework = arduino
+monitor_speed = 115200
 lib_deps = 
 	bblanchon/ArduinoJson@^6.20.0
 	beegee-tokyo/DHT sensor library for ESPx@^1.19
 ```
+
+
+The following code snippet represents the program header, where necessary imports are made to utilize essential libraries and functionalities. This includes the 'DHTesp' library for communication with the DHT22 sensor, 'ArduinoJson' for data manipulation in JSON format, 'HTTPClient' for executing HTTP requests, and, depending on the board type, the respective Wi-Fi connection libraries ('WiFi' for ESP32 and 'ESP8266WiFi' for ESP8266).
 
 
 ```C++
@@ -31,20 +52,25 @@ lib_deps =
 ## Configuration
 The following variables need to be configured for the system to work:
 
-- `ssid`: The SSID of the WiFi network to connect to.
-- `password`: The password of the WiFi network.
-- `apiKey`: The API key to authenticate with the server.
-- `host`: The URL of the server to send data to.
+- `WIFI_SSID`: The SSID of the WiFi network to connect to.
+- `WIFI_PASSWORD`: The password of the WiFi network.
+- `HOST`: The URL of the server to send data to.
+- `API_KEY`: The API key to authenticate with the server.
 - `INTERVAL`: The interval (in milliseconds) between readings and transmissions.
-- `DHTPin`: The pin number connected to the DHT22 sensor.
+- `DHT_Pin`: The pin number connected to the DHT22 sensor.
 
 
 ```C++
-const char *ssid = "YOUR_SSID";
-const char *password = "YOUR_PASSWORD";
-const String apiKey = "YOUR_API_KEY";
-const String host = "https://api.info-dash.lat/v1";
-const int INTERVAL = 60000;
+// WiFi credentials
+const char *WIFI_SSID = "YOUR_WIFI_SSID";
+const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+// Info-Dash credentials
+const String HOST = "https://api.info-dash.lat/v1";
+const String API_KEY = "YOUR_INFO-DASH_API_KEY";
+
+// Info-Dash
+const int INTERVAL = 10000; // 10 seconds
 const int DHTPin = 4;
 
 ```
@@ -54,12 +80,14 @@ const int DHTPin = 4;
 - `humidity`: A global variable to store the humidity value.
 - `temperature`: A global variable to store the temperature value.
 - `sendJson`: A global variable to store the JSON payload to be sent to the API endpoint.
+- `dht`: DHTesp library instance.
 
 
 ```C++
 float humidity = 0;
 float temperature = 0;
 String sendJson = "";
+DHTesp dht;
 
 ```
 
@@ -85,7 +113,7 @@ bool connectToWifi()
 
   Serial.println("Info: Connecting to WiFi...");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -112,7 +140,7 @@ String buildSendJson(String response)
   deserializeJson(jsonResponse, response);
 
   jsonPayload["serial"] = getSerialID();
-  jsonPayload["apiKey"] = apiKey;
+  jsonPayload["apiKey"] = API_KEY;
 
   for (size_t i = 0; i < jsonResponse["stations"][0]["sensors"].size(); i++)
     jsonPayload["payloads"][i]["sensorId"] = jsonResponse["stations"][0]["sensors"][i]["sensorId"];
@@ -132,11 +160,10 @@ bool connectToServer()
 {
   Serial.println("Info: Connecting to server...");
   HTTPClient http;
-  String url = host + "/network/access/" + apiKey;
+  String url = HOST + "/network/access/" + API_KEY;
 
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", apiKey);
 
   int httpCode = http.GET();
 
@@ -165,14 +192,13 @@ void readDHT()
 {
   temperature = dht.getTemperature();
   humidity = dht.getHumidity();
-  Serial.print("Info: Temperature: ");
+  Serial.print("\nInfo: Temperature: ");
   Serial.print(temperature);
   Serial.print("°C");
   Serial.print(" Humidity: ");
   Serial.print(humidity);
   Serial.println("%");
 }
-
 ```
 
 
@@ -224,8 +250,11 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);
+
   Serial.println("Info: Starting...");
   Serial.println("Info: Serial ID: " + getSerialID());
+  delay(2000);
+
   dht.setup(DHTPin, DHTesp::DHT22);
 
   pinMode(LED_BUILTIN, OUTPUT);
@@ -271,4 +300,11 @@ void loop()
 ```
 
 ## Annexes
+
+This annex provides a visual representation of the HTTP request configuration used in the program. 
+
+![http_request](static/http_resquest.jpg)
+
+This annex offers a visual representation of an ESP32 device with a DHT22 sensor executing the program. 
+
 ![example_1](/static/example1.jpeg)
